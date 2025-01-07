@@ -76,18 +76,38 @@ class Payment(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)  # Foreign key to Student
     amount = db.Column(db.Float, nullable=False)
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    method = db.Column(db.String(15))
+    method = db.Column(db.String(15), nullable=False)  # e.g., 'cash', 'bank transfer'
+    term_id = db.Column(db.String(20), nullable=False)  # Unique identifier for the term (e.g., '2024_Term1')
+    balance_after_payment = db.Column(db.Float, nullable=False)  # Balance after this payment
+    description = db.Column(db.String(255))  # Optional description for the payment
+    notes = db.Column(db.Text)  # Additional notes about the payment
 
     @staticmethod
-    def record_payment(student_id, amount, method):
+    def record_payment(student_id, amount, method, term_id, description=None, notes=None):
+        from models import Student  # Import Student model to avoid circular imports
+
         student = Student.query.get(student_id)
         if not student:
             raise ValueError("Student not found")
+
+        # Update student's balance
         student.balance -= amount
-        student.arrears = 0  # Reset arrears on payment
-        payment = Payment(student_id=student_id, amount=amount, method=method)
+        if student.balance <= 0:
+            student.arrears = 0  # Clear arrears if fully paid
+
+        # Create payment record
+        payment = Payment(
+            student_id=student_id,
+            amount=amount,
+            method=method,
+            term_id=term_id,
+            balance_after_payment=student.balance,
+            description=description,
+            notes=notes
+        )
         db.session.add(payment)
         db.session.commit()
+
         return payment
 
 # Boarding fees, linked to grades

@@ -125,30 +125,118 @@ def get_student(id):
         })
     return jsonify({"error": "Student not found"}), 404
 
-@routes.route('/payments', methods=['POST'])
-def create_payment():
-    data = request.get_json()
-    student_id = data['student_id']
-    amount = data['amount']
-    payment_method = data['payment_method']
 
-    payment = Payment(student_id=student_id, amount=amount, method=payment_method)
-    db.session.add(payment)
-    
-    student = Student.query.get(student_id)
-    if student:
-        student.balance -= amount
-    
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Payment created successfully',
-        'payment': {
-            'student_id': student_id,
-            'amount': amount,
-            'payment_date': payment.date
-        }
-    })
+# Add Payment
+@routes.route('/payments', methods=['POST'])
+def add_payment():
+    data = request.get_json()
+    try:
+        student_id = data.get('student_id')
+        amount = data.get('amount')
+        method = data.get('method')
+        term_id = data.get('term_id')
+        description = data.get('description')
+        notes = data.get('notes')
+
+        if not all([student_id, amount, method, term_id]):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        payment = Payment.record_payment(
+            student_id=student_id,
+            amount=amount,
+            method=method,
+            term_id=term_id,
+            description=description,
+            notes=notes
+        )
+        return jsonify({"message": "Payment added successfully", "payment_id": payment.id}), 201
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": "An error occurred while adding payment", "details": str(e)}), 500
+
+
+# Edit Payment
+@routes.route('/payments/<int:payment_id>', methods=['PUT'])
+def edit_payment(payment_id):
+    data = request.get_json()
+    try:
+        payment = Payment.query.get(payment_id)
+        if not payment:
+            return jsonify({"error": "Payment not found"}), 404
+
+        payment.amount = data.get('amount', payment.amount)
+        payment.method = data.get('method', payment.method)
+        payment.term_id = data.get('term_id', payment.term_id)
+        payment.description = data.get('description', payment.description)
+        payment.notes = data.get('notes', payment.notes)
+
+        db.session.commit()
+        return jsonify({"message": "Payment updated successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": "An error occurred while updating payment", "details": str(e)}), 500
+
+
+# Delete Payment
+@routes.route('/payments/<int:payment_id>', methods=['DELETE'])
+def delete_payment(payment_id):
+    try:
+        payment = Payment.query.get(payment_id)
+        if not payment:
+            return jsonify({"error": "Payment not found"}), 404
+
+        db.session.delete(payment)
+        db.session.commit()
+        return jsonify({"message": "Payment deleted successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": "An error occurred while deleting payment", "details": str(e)}), 500
+
+
+# Get All Payments for a Student
+@routes.route('/payments/student/<int:student_id>', methods=['GET'])
+def get_payments_by_student(student_id):
+    try:
+        payments = Payment.query.filter_by(student_id=student_id).all()
+        return jsonify([{
+            "id": p.id,
+            "amount": p.amount,
+            "date": p.date,
+            "method": p.method,
+            "term_id": p.term_id,
+            "balance_after_payment": p.balance_after_payment,
+            "description": p.description,
+            "notes": p.notes
+        } for p in payments]), 200
+
+    except Exception as e:
+        return jsonify({"error": "An error occurred while fetching payments", "details": str(e)}), 500
+
+
+# Get Payment by ID
+@routes.route('/payments/<int:payment_id>', methods=['GET'])
+def get_payment(payment_id):
+    try:
+        payment = Payment.query.get(payment_id)
+        if not payment:
+            return jsonify({"error": "Payment not found"}), 404
+
+        return jsonify({
+            "id": payment.id,
+            "amount": payment.amount,
+            "date": payment.date,
+            "method": payment.method,
+            "term_id": payment.term_id,
+            "balance_after_payment": payment.balance_after_payment,
+            "description": payment.description,
+            "notes": payment.notes
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": "An error occurred while fetching payment", "details": str(e)}), 500
+        
 
 @routes.route('/get_student_bus_destinations/<int:student_id>', methods=['GET'])
 def get_student_bus_destinations(student_id):
