@@ -3,32 +3,34 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from . import db
 
+# Term model
 class Term(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
-    
+
     bus_payments = db.relationship('BusPayment', back_populates='term', lazy=True)
-    
+
     def __repr__(self):
         return f"<Term(name={self.name}, start_date={self.start_date}, end_date={self.end_date})>"
 
+# Association table for students and bus destinations
 student_bus_destination = db.Table(
     'student_bus_destination',
     db.Column('student_id', db.Integer, db.ForeignKey('student.id'), primary_key=True),
-    db.Column('bus_destination_id', db.Integer, db.ForeignKey('bus_destination.id'), primary_key=True)  # Correct table name
+    db.Column('bus_destination_id', db.Integer, db.ForeignKey('bus_destination.id'), primary_key=True)
 )
 
-# Staff can represent many classes
+# Staff model
 class Staff(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
     phone = db.Column(db.String(25), nullable=False)
-    password = db.Column(db.String(100), nullable=False)  # Password field
+    password = db.Column(db.String(100), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     role = db.Column(db.String(50), nullable=False)
-    # Represent many classes (one-to-many relationship)
+
     classes = db.relationship('Class', back_populates='staff')
 
     def set_password(self, password):
@@ -36,66 +38,74 @@ class Staff(db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password, password)
-# Each student can have many payments, bus payments, and assignments
+
+# Grade model for fee structure
+class Grade(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(10), nullable=False, unique=True)
+    term_fees = db.relationship('Fee', back_populates='grade', lazy=True)
+
+    def __repr__(self):
+        return f"<Grade(name={self.name})>"
+
+# Student model
 class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     admission_number = db.Column(db.String(50), unique=True, nullable=False)
-    grade = db.Column(db.String(10), nullable=False)
+    grade_id = db.Column(db.Integer, db.ForeignKey('grade.id'), nullable=False)
+    phone = db.Column(db.String(20), nullable=False
     balance = db.Column(db.Float, default=0.0)
     arrears = db.Column(db.Float, default=0.0)
     term_fee = db.Column(db.Float, nullable=False)
     use_bus = db.Column(db.Boolean, nullable=False)
     bus_balance = db.Column(db.Float, default=0.0)
     password = db.Column(db.String(100), nullable=False)
-    
-         # Relationships
+
+    # Relationships
+    grade = db.relationship('Grade', backref='students')
     bus_destinations = db.relationship('BusDestination', secondary=student_bus_destination, back_populates='students')
     payments = db.relationship('Payment', backref='student', lazy=True)
     bus_payments = db.relationship('BusPayment', back_populates='student', lazy=True)
     assignments = db.relationship('Assignment', backref='student', lazy=True)
 
     def set_password(self, password):
-        """Set password using bcrypt."""
-        self.password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        self.password = generate_password_hash(password)
 
     def check_password(self, password):
-        """Check if the password matches."""
-        return bcrypt.checkpw(password.encode('utf-8'), self.password.encode('utf-8'))
+        return check_password_hash(self.password, password)
 
     def initialize_balance(self):
-        fee = Fee.query.filter_by(grade=self.grade).first()
+        fee = Fee.query.filter_by(grade_id=self.grade_id).first()
         if fee:
-            self.balance = (fee.term_fee or 0) + (self.arrears or 0)
+            self.balance = (fee.amount or 0) + (self.arrears or 0)
         else:
-            self.balance = self.arrears  # or set it to 0.0, or whatever is appropriate# Fee model where each grade can have only one fee (One-to-One for grade)
+            self.balance = self.arrears  # or set it to 0.0
 
-# Payment model where students can have many payments
+# Payment model
 class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)  # Foreign key to Student
+    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     amount = db.Column(db.Float, nullable=False)
     date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    method = db.Column(db.String(15), nullable=False)  # e.g., 'cash', 'bank transfer'
-    term_id = db.Column(db.String(20), nullable=False)  # Unique identifier for the term (e.g., '2024_Term1')
-    balance_after_payment = db.Column(db.Float, nullable=False)  # Balance after this payment
-    description = db.Column(db.String(255))  # Optional description for the payment
-    notes = db.Column(db.Text)  # Additional notes about the payment
+    method = db.Column(db.String(15), nullable=False)
+    term_id = db.Column(db.String(20), nullable=False)
+    balance_after_payment = db.Column(db.Float, nullable=False)
+    description = db.Column(db.String(255))
+    notes = db.Column(db.Text)
 
     @staticmethod
     def record_payment(student_id, amount, method, term_id, description=None, notes=None):
-        from models import Student  # Import Student model to avoid circular imports
+        from models import Student
 
         student = Student.query.get(student_id)
         if not student:
             raise ValueError("Student not found")
 
-        # Update student's balance
         student.balance -= amount
         if student.balance <= 0:
             student.arrears = 0  # Clear arrears if fully paid
 
-        # Create payment record
         payment = Payment(
             student_id=student_id,
             amount=amount,
@@ -110,91 +120,81 @@ class Payment(db.Model):
 
         return payment
 
-# Boarding fees, linked to grades
-class BoardingFee(db.Model):
+# Fee model for each term and grade
+class Fee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    grade = db.Column(db.String(10), nullable=False)
-    extra_fee = db.Column(db.Float, nullable=False, default=3500)
+    term_id = db.Column(db.Integer, db.ForeignKey('term.id'), nullable=False)
+    grade_id = db.Column(db.Integer, db.ForeignKey('grade.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    is_paid = db.Column(db.Boolean, default=False)
+
+    grade = db.relationship('Grade', back_populates='term_fees')
 
     def __repr__(self):
-        return f'<BoardingFee {self.grade} - {self.extra_fee}>'
+        return f"<Fee(term_id={self.term_id}, grade_id={self.grade_id}, amount={self.amount}, is_paid={self.is_paid})>"
 
+# Boarding Fee model linked to grade
+class BoardingFee(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    grade_id = db.Column(db.Integer, db.ForeignKey('grade.id'), nullable=False)
+    extra_fee = db.Column(db.Float, nullable=False, default=3500)
 
-# Assignments can be related to multiple students
+    grade = db.relationship('Grade', backref='boarding_fees')
+
+    def __repr__(self):
+        return f'<BoardingFee {self.grade_id} - {self.extra_fee}>'
+
+# Assignment model related to multiple students
 class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
-    grade = db.Column(db.String(10), nullable=False)
-    description = db.Column(db.Text, nullable=True)
+    grade_id = db.Column(db.String(10), nullable=False)
+    description = db.Column(db.Text)
     due_date = db.Column(db.DateTime, nullable=False)
-    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)  # Foreign key to Student
+    student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
 
     def __repr__(self):
-        return f'<Assignment {self.title} for Grade {self.grade}>'
+        return f'<Assignment {self.title} for Grade {self.grade_id}>'
 
-
-# Class model to represent the classes that staff can manage
+# Class model related to staff
 class Class(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    grade = db.Column(db.String(10), nullable=False)
-    staff_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=False)  # One-to-Many relationship to Staff
-    staff = db.relationship('Staff', back_populates='classes')
+    grade_id = db.Column(db.Integer, db.ForeignKey('grade.id'), nullable=False)
+    staff_id = db.Column(db.Integer, db.ForeignKey('staff.id'), nullable=False)
 
+    staff = db.relationship('Staff', back_populates='classes')
+    grade = db.relationship('Grade', backref='classes')
 
     def __repr__(self):
         return f'<Class {self.name}>'
 
-
-# School Events
-class Event(db.Model):
+# Gallery model for images
+class Gallery(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(200), nullable=False)
-    date = db.Column(db.DateTime, nullable=False)
-    destination = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text, nullable=True)
+    image_url = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String(255))
 
     def __repr__(self):
-        return f'<Event {self.title} on {self.date}>'
+        return f"<Gallery(image_url={self.image_url}, description={self.description})>"
 
-# Notifications
-class Notification(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    message = db.Column(db.Text, nullable=False)
-    date = db.Column(db.DateTime, default=datetime.utcnow)
-
-    def __repr__(self):
-        return f'<Notification {self.id} - {self.message}>'
-    
-
-
-class Fee(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    term_id = db.Column(db.Integer, db.ForeignKey('term.id'), nullable=False)
-    grade = db.Column(db.String(10), nullable=False)
-    amount = db.Column(db.Float, nullable=False)
-    is_paid = db.Column(db.Boolean, default=False)
-
-    def __repr__(self):
-        return f"<Fee(term_id={self.term_id}, grade={self.grade}, amount={self.amount}, is_paid={self.is_paid})>"
-
-
+# Bus Destination model
 class BusDestination(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    charge = db.Column(db.Float, nullable=False)  # The bus charge for this destination
-    
-    # Many-to-many relationship with students
+    charge = db.Column(db.Float, nullable=False)
+
     students = db.relationship('Student', secondary=student_bus_destination, back_populates='bus_destinations')
 
     def __repr__(self):
         return f"<BusDestination(name={self.name}, charge={self.charge})>"
 
+# Bus Payment model
 class BusPayment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     term_id = db.Column(db.Integer, db.ForeignKey('term.id'), nullable=False)
-    destination_id = db.Column(db.Integer, db.ForeignKey('bus_destination.id'), nullable=True)  # Correct table name
+    destination_id = db.Column(db.Integer, db.ForeignKey('bus_destination.id'), nullable=True)
     amount = db.Column(db.Float, nullable=False)
     payment_date = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -214,12 +214,12 @@ class BusPayment(db.Model):
 
     def __repr__(self):
         return f"<BusPayment(student_id={self.student_id}, term_id={self.term_id}, destination_id={self.destination_id}, amount={self.amount}, payment_date={self.payment_date})>"
-    
-class Gallery(db.Model):
 
+# Notifications model
+class Notification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    image_url = db.Column(db.String(255), nullable=False)
-    description = db.Column(db.String(255))
-    
+    message = db.Column(db.Text, nullable=False)
+    date = db.Column(db.DateTime, default=datetime.utcnow)
+
     def __repr__(self):
-        return f"<Gallery(image_url={self.image_url}, description={self.description})>"
+        return f'<Notification {self.id} - {self.message}>'

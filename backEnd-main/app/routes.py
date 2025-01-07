@@ -28,7 +28,7 @@ def register_student():
     student.set_password(admission_number)
     db.session.add(student)
     db.session.commit()
-    
+    mnj
     return jsonify({"message": "Student registered successfully"}), 201
 
 @routes.route('/register_staff', methods=['POST'])
@@ -450,3 +450,257 @@ def get_staff():
         'role': staff.role,
         'password':staff.password
     } for staff in staff_members])
+
+
+
+
+from flask import request, jsonify, Blueprint
+from .models import db, Staff, Student, Payment, Fee, BusPayment, BusDestination, Term, Gallery, Assignment, Notification, student_bus_destination, Class, BoardingFee
+from flask import current_app as app
+import logging
+from datetime import datetime
+
+routes = Blueprint('routes', __name__)
+
+logging.basicConfig(level=logging.DEBUG)
+
+# Register Student
+@routes.route('/register_student', methods=['POST'])
+def register_student():
+    data = request.get_json()
+    admission_number = data['admission_number']
+    name = data['name']
+    grade = data['grade']
+    term_fee = data['term_fee']
+    use_bus = data['use_bus']
+    phone = data['phone']
+    
+    student = Student(
+        name=name,
+        admission_number=admission_number,
+        grade_id=grade,  # grade is ID, not grade name
+        term_fee=term_fee,
+        use_bus=use_bus,
+        phone=phone,
+    )
+    # Set default password as admission_number
+    student.set_password(admission_number)
+    db.session.add(student)
+    db.session.commit()
+    
+    return jsonify({"message": "Student registered successfully"}), 201
+
+# Register Staff
+@routes.route('/register_staff', methods=['POST'])
+def register_staff():
+    data = request.get_json()
+    name = data['name']
+    phone = data['phone']
+    role = data['role']
+    password = data.get('password', 'defaultpassword')  # Set default password if not provided
+    
+    staff = Staff(
+        name=name,
+        phone=phone,
+        role=role,
+    )
+    staff.set_password(password)  # Set password using bcrypt
+    db.session.add(staff)
+    db.session.commit()
+    
+    return jsonify({"message": "Staff registered successfully"}), 201
+
+# Login
+@routes.route('/login', methods=['POST'])
+def login():
+    try:
+        data = request.get_json()
+        identifier = data.get('identifier')  # admission_number or name
+        password = data.get('password')
+
+        if not identifier or not password:
+            return jsonify({"error": "Missing identifier or password"}), 400
+
+        # Check if it's a student login
+        student = Student.query.filter_by(admission_number=identifier).first()
+        if student and student.check_password(password):
+            return jsonify({"message": "Student login successful", "role": "student"}), 200
+
+        # Check for staff login
+        staff = Staff.query.filter_by(name=identifier).first()
+        if staff and staff.check_password(password):
+            return jsonify({"message": "Staff login successful", "role": staff.role}), 200
+
+        # If no match is found
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    except Exception as e:
+        app.logger.error(f"Error during login: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+# Delete Staff
+@routes.route('/delete_staff/<int:id>', methods=['DELETE'])
+def delete_staff(id):
+    staff = Staff.query.get_or_404(id)
+    db.session.delete(staff)
+    db.session.commit()
+    
+    return jsonify({"message": "Staff deleted successfully"}), 200
+
+# Create Fee
+@routes.route('/fees', methods=['POST'])
+def create_fee():
+    data = request.get_json()
+    term_id = data['term_id']
+    grade = data['grade']
+    amount = data['amount']
+
+    fee = Fee(term_id=term_id, grade_id=grade, amount=amount)
+    db.session.add(fee)
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Fee record created successfully',
+        'fee': {
+            'term_id': term_id,
+            'grade': grade,
+            'amount': amount
+        }
+    })
+
+# Get All Students
+@routes.route('/students', methods=['GET'])
+def get_students():
+    students = Student.query.all()
+    return jsonify([{
+        'id': student.id,
+        'name': student.name,
+        'admission_number': student.admission_number,
+        'phone': student.phone,
+        'balance': student.balance,
+        'bus_balance': student.bus_balance,
+        'use_bus': student.use_bus
+    } for student in students])
+
+# Get Single Student by ID
+@routes.route('/students/<int:id>', methods=['GET'])
+def get_student(id):
+    student = Student.query.get(id)
+    if student:
+        return jsonify({
+            'id': student.id,
+            'name': student.name,
+            'admission_number': student.admission_number,
+            'phone': student.phone,
+            'balance': student.balance,
+            'bus_balance': student.bus_balance,
+            'use_bus': student.use_bus
+        })
+    return jsonify({"error": "Student not found"}), 404
+
+# Add Payment
+@routes.route('/payments', methods=['POST'])
+def add_payment():
+    data = request.get_json()
+    try:
+        student_id = data.get('student_id')
+        amount = data.get('amount')
+        method = data.get('method')
+        term_id = data.get('term_id')
+        description = data.get('description')
+        notes = data.get('notes')
+
+        if not all([student_id, amount, method, term_id]):
+            return jsonify({"error": "Missing required fields"}), 400
+
+        payment = Payment.record_payment(
+            student_id=student_id,
+            amount=amount,
+            method=method,
+            term_id=term_id,
+            description=description,
+            notes=notes
+        )
+        return jsonify({"message": "Payment added successfully", "payment_id": payment.id}), 201
+
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": "An error occurred while adding payment", "details": str(e)}), 500
+
+# Edit Payment
+@routes.route('/payments/<int:payment_id>', methods=['PUT'])
+def edit_payment(payment_id):
+    data = request.get_json()
+    try:
+        payment = Payment.query.get(payment_id)
+        if not payment:
+            return jsonify({"error": "Payment not found"}), 404
+
+        payment.amount = data.get('amount', payment.amount)
+        payment.method = data.get('method', payment.method)
+        payment.term_id = data.get('term_id', payment.term_id)
+        payment.description = data.get('description', payment.description)
+        payment.notes = data.get('notes', payment.notes)
+
+        db.session.commit()
+        return jsonify({"message": "Payment updated successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": "An error occurred while updating payment", "details": str(e)}), 500
+
+# Delete Payment
+@routes.route('/payments/<int:payment_id>', methods=['DELETE'])
+def delete_payment(payment_id):
+    try:
+        payment = Payment.query.get(payment_id)
+        if not payment:
+            return jsonify({"error": "Payment not found"}), 404
+
+        db.session.delete(payment)
+        db.session.commit()
+        return jsonify({"message": "Payment deleted successfully"}), 200
+
+    except Exception as e:
+        return jsonify({"error": "An error occurred while deleting payment", "details": str(e)}), 500
+
+# Get Payments for a Student
+@routes.route('/payments/student/<int:student_id>', methods=['GET'])
+def get_payments_by_student(student_id):
+    try:
+        payments = Payment.query.filter_by(student_id=student_id).all()
+        return jsonify([{
+            "id": p.id,
+            "amount": p.amount,
+            "date": p.date,
+            "method": p.method,
+            "term_id": p.term_id,
+            "balance_after_payment": p.balance_after_payment,
+            "description": p.description,
+            "notes": p.notes
+        } for p in payments]), 200
+
+    except Exception as e:
+        return jsonify({"error": "An error occurred while fetching payments", "details": str(e)}), 500
+
+# Get Payment by ID
+@routes.route('/payments/<int:payment_id>', methods=['GET'])
+def get_payment(payment_id):
+    try:
+        payment = Payment.query.get(payment_id)
+        if not payment:
+            return jsonify({"error": "Payment not found"}), 404
+
+        return jsonify({
+            "id": payment.id,
+            "amount": payment.amount,
+            "date": payment.date,
+            "method": payment.method,
+            "term_id": payment.term_id,
+            "balance_after_payment": payment.balance_after_payment,
+            "description": payment.description,
+            "notes": payment.notes
+        })
+    except Exception as e:
+        return jsonify({"error": "An error occurred while fetching payment", "details": str(e)}), 500
+        

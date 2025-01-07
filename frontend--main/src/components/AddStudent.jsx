@@ -1,21 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const AddStudent = () => {
+const AddStudent = ({ onClose }) => {
     const [name, setName] = useState('');
     const [admissionNumber, setAdmissionNumber] = useState('');
     const [grade, setGrade] = useState('');
+    const [balance, setBalance] = useState(0.0);
+    const [arrears, setArrears] = useState(0.0);
+    const [termFee, setTermFee] = useState(0.0);
     const [useBus, setUseBus] = useState(false);
-    const [isBoarding, setIsBoarding] = useState(false);
-    const [boardingFee, setBoardingFee] = useState(0);
+    const [busBalance, setBusBalance] = useState(0.0);
+    const [password, setPassword] = useState('');
     const [grades, setGrades] = useState([]);
     const [message, setMessage] = useState('');
 
     useEffect(() => {
-        // Fetch grades from your API or hardcode them
         const fetchGrades = async () => {
-            const response = await axios.get('/api/grades'); // Adjust the endpoint as needed
-            setGrades(response.data);
+            try {
+                const response = await axios.get('/api/grades');
+                setGrades(response.data);
+            } catch (error) {
+                console.error('Error fetching grades:', error);
+            }
         };
 
         fetchGrades();
@@ -28,36 +34,31 @@ const AddStudent = () => {
             name,
             admission_number: admissionNumber,
             grade,
+            balance,
+            arrears,
+            term_fee: termFee,
             use_bus: useBus,
-            boarding_fee: boardingFee
+            bus_balance: busBalance,
+            password,
         };
 
         try {
-            const response = await axios.post('/api/students', studentData);
-            setMessage(response.data.message);
+            await axios.post('/api/students', studentData);
+            setMessage('Student added successfully!');
             // Reset form
             setName('');
             setAdmissionNumber('');
             setGrade('');
+            setBalance(0.0);
+            setArrears(0.0);
+            setTermFee(0.0);
             setUseBus(false);
-            setBoardingFee(0);
+            setBusBalance(0.0);
+            setPassword('');
+            onClose(); // Close modal after successful submission
         } catch (error) {
             console.error('Error adding student:', error);
-            setMessage('Error adding student. Please try again.');
-        }
-    };
-
-    const handleGradeChange = (e) => {
-        const selectedGrade = e.target.value;
-        setGrade(selectedGrade);
-
-        // Check if the selected grade is for boarding
-        if (['5', '6', '7', '8', '9', '10'].includes(selectedGrade)) { // Adjust according to your boarding grades
-            setIsBoarding(true);
-            setBoardingFee(3500); // Set the boarding fee for grades above 5
-        } else {
-            setIsBoarding(false);
-            setBoardingFee(0); // Reset boarding fee for grades below 5
+            setMessage('Failed to add student. Please try again.');
         }
     };
 
@@ -86,7 +87,7 @@ const AddStudent = () => {
                 </div>
                 <div>
                     <label>Grade:</label>
-                    <select value={grade} onChange={handleGradeChange} required>
+                    <select value={grade} onChange={(e) => setGrade(e.target.value)} required>
                         <option value="" disabled>Select grade</option>
                         {grades.map((g) => (
                             <option key={g.id} value={g.grade}>
@@ -94,6 +95,32 @@ const AddStudent = () => {
                             </option>
                         ))}
                     </select>
+                </div>
+                <div>
+                    <label>Balance:</label>
+                    <input
+                        type="number"
+                        value={balance}
+                        onChange={(e) => setBalance(parseFloat(e.target.value))}
+                        required
+                    />
+                </div>
+                <div>
+                    <label>Arrears:</label>
+                    <input
+                        type="number"
+                        value={arrears}
+                        onChange={(e) => setArrears(parseFloat(e.target.value))}
+                    />
+                </div>
+                <div>
+                    <label>Term Fee:</label>
+                    <input
+                        type="number"
+                        value={termFee}
+                        onChange={(e) => setTermFee(parseFloat(e.target.value))}
+                        required
+                    />
                 </div>
                 <div>
                     <label>
@@ -105,17 +132,23 @@ const AddStudent = () => {
                         Will use bus
                     </label>
                 </div>
-                {!isBoarding && (
-                    <div>
-                        <label>Boarding Fee:</label>
-                        <input
-                            type="number"
-                            value={boardingFee}
-                            onChange={(e) => setBoardingFee(e.target.value)}
-                            disabled={isBoarding}
-                        />
-                    </div>
-                )}
+                <div>
+                    <label>Bus Balance:</label>
+                    <input
+                        type="number"
+                        value={busBalance}
+                        onChange={(e) => setBusBalance(parseFloat(e.target.value))}
+                    />
+                </div>
+                <div>
+                    <label>Password:</label>
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                    />
+                </div>
                 <button type="submit">Add Student</button>
             </form>
         </div>
@@ -123,3 +156,4 @@ const AddStudent = () => {
 };
 
 export default AddStudent;
+

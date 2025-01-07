@@ -10,6 +10,8 @@ import StudentDashboard from './components/StudentDashboard';
 import { AuthProvider } from './auth/AuthProvider';
 import PrivateRoute from './auth/PrivateRoute';
 import RoleBasedRoute from './auth/RoleBasedRoute';
+import StudentPaymentsByTerm from './components/StudentPaymentsByTerm';
+import AddStudent from './components/AddStudent';
 
 const App = () => {
   return (
@@ -20,9 +22,22 @@ const App = () => {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<LoginForm />} />
           <Route path="/student" element={<StudentDashboard />} />
+          <Route path="/payments" element={<StudentPaymentsByTerm />} />
+          
 
           {/* Role-Based Private Routes */}
           <Route path="/admin" element={<PrivateRoute><RoleBasedRoute role="admin"><AdminDashboard /></RoleBasedRoute></PrivateRoute>} />
+          <Route 
+  path="/admin/add-student" 
+  element={
+    <PrivateRoute>
+      <RoleBasedRoute role="admin">
+        <AddStudent />
+      </RoleBasedRoute>
+    </PrivateRoute>
+  } 
+/>
+3. Update
           <Route path="/bursar" element={<PrivateRoute><RoleBasedRoute role="bursar"><BursarDashboard /></RoleBasedRoute></PrivateRoute>} />
           <Route path="/director" element={<PrivateRoute><RoleBasedRoute role="director"><DirectorDashboard /></RoleBasedRoute></PrivateRoute>} />
           <Route path="/teacher" element={<PrivateRoute><RoleBasedRoute role="teacher"><TeacherDashboard /></RoleBasedRoute></PrivateRoute>} />
