@@ -62,10 +62,11 @@ class Student(db.Model):
     bus_balance = db.Column(db.Float, default=0.0)
     is_boarding = db.Column(db.Boolean, nullable=False, default=False)
     password = db.Column(db.String(100), nullable=False)
-
+    bus_destination_id = db.Column(db.Integer, db.ForeignKey('bus_destination.id'))
+    
     # Relationships
     grade = db.relationship('Grade', backref='students')
-    bus_destinations = db.relationship('BusDestination', secondary=student_bus_destination, back_populates='students')
+    bus_destination = db.relationship('BusDestination', backref='students', lazy=True)
     payments = db.relationship('Payment', backref='student', lazy=True)
     bus_payments = db.relationship('BusPayment', back_populates='student', lazy=True)
     assignments = db.relationship('Assignment', backref='student', lazy=True)
