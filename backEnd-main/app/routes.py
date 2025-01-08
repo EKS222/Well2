@@ -1,10 +1,10 @@
 from flask import request, jsonify, Blueprint
-from .models import db, Staff,  Student, Payment, Fee, BusPayment, BusDestination, Term, Gallery, Event, Notification, student_bus_destination, Staff
+from .models import db, Staff,  Student, Payment, Fee, BusPayment, BusDestination, Term, Gallery, Event, Notification, student_bus_destination
 from flask import current_app as app
 import logging
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
-from werkzeug.security import generate_password_hash, check_password_hash
+
 
 logging.basicConfig(level=logging.DEBUG)
 routes = Blueprint('routes', __name__)
