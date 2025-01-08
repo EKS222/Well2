@@ -60,6 +60,7 @@ class Student(db.Model):
     term_fee = db.Column(db.Float, nullable=False)
     use_bus = db.Column(db.Boolean, nullable=False)
     bus_balance = db.Column(db.Float, default=0.0)
+    is_boarding = db.Column(db.Boolean, nullable=False, default=False)
     password = db.Column(db.String(100), nullable=False)
 
     # Relationships
@@ -76,12 +77,42 @@ class Student(db.Model):
         return check_password_hash(self.password, password)
 
     def initialize_balance(self):
+        """
+        Calculate the student's term balance based on their grade, boarding status, and arrears.
+        """
+        # Fetch the term fee for the student's grade
         fee = Fee.query.filter_by(grade_id=self.grade_id).first()
-        if fee:
-            self.balance = (fee.amount or 0) + (self.arrears or 0)
-        else:
-            self.balance = self.arrears  # or set it to 0.0
+        if not fee:
+            raise ValueError("Fee structure not set for this grade.")
 
+        # Default balance
+        self.balance = fee.amount
+        # Students below grade 5 who choose to board pay an additional fee
+        if self.is_boarding and int(self.grade.name) < 5:
+            boarding_fee = BoardingFee.query.first()
+            if boarding_fee:
+                self.balance += boarding_fee.extra_fee
+
+        # Add any arrears to the balance
+        if self.arrears:
+            self.balance += self.arrears
+
+        db.session.commit()
+
+    def update_bus_balance(self, payment_amount):
+        """
+        Update the student's bus balance after a payment.
+        """
+        if not self.use_bus:
+            raise ValueError("Student does not use the bus.")
+        
+        self.bus_balance -= payment_amount
+        if self.bus_balance < 0:
+            self.bus_balance = 0
+
+        db.session.commit()
+        
+        
 # Payment model
 class Payment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -136,10 +167,7 @@ class Fee(db.Model):
 # Boarding Fee model linked to grade
 class BoardingFee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    grade_id = db.Column(db.Integer, db.ForeignKey('grade.id'), nullable=False)
     extra_fee = db.Column(db.Float, nullable=False, default=3500)
-
-    grade = db.relationship('Grade', backref='boarding_fees')
 
     def __repr__(self):
         return f'<BoardingFee {self.grade_id} - {self.extra_fee}>'
