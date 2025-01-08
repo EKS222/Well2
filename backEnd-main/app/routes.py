@@ -459,7 +459,13 @@ def assign_student_to_bus():
     student.bus_destinations.append(destination)
     db.session.commit()
 
-    returdef get_terms():
+    return jsonify({
+        'message': 'Student assigned to bus destination successfully',
+        'student_id': student.id,
+        'destination_id': destination.id
+    })
+    
+def get_terms():
     terms = Term.query.all()
     return jsonify([{
         'id': term.id,
