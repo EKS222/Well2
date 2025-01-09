@@ -1,45 +1,48 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import StudentList from './StudentList';
-import StudentDetails from './StudentDetails';
-import '../styles/dashboard.css';
-
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import "../styles/adminDashboard.css";
+import Header from "./Header";
 const AdminDashboard = () => {
-  const [selectedStudent, setSelectedStudent] = useState(null);
   const navigate = useNavigate();
 
+  const sections = [
+    { label: "Students", icon: "📚", path: "/admin/students" },
+    { label: "Staff", icon: "👩‍🏫", path: "/admin/staff" },
+    { label: "Notifications", icon: "🔔", path: "/admin/notifications" },
+    { label: "Gallery", icon: "🖼️", path: "/admin/gallery" },
+    { label: "Terms", icon: "📅", path: "/admin/terms" },
+    { label: "Fees", icon: "💰", path: "/admin/fees" },
+    { label: "Grades", icon: "🎓", path: "/admin/grades" },
+    { label: "Classes", icon: "🏫", path: "/admin/classes" },
+  ];
+
   return (
-    <div className="dashboard-container">
-      {/* Header Section */}
-      <div className="dashboard-header">
-        <h2>Admin Dashboard</h2>
-        <button 
-          className="add-student-btn" 
-          onClick={() => navigate('/admin/add-student')}
-        >
-          Add New Student
-        </button>
-      </div>
-
-      {/* Main Content Section */}
-      <div className="dashboard-main">
-        <div className="dashboard-section student-list">
-          <h3>Student List</h3>
-          <StudentList onSelectStudent={setSelectedStudent} />
+    <div className="admin-dashboard">
+      <Header />
+      <div className="dashboard-container">
+        <h1>Admin Dashboard</h1>
+        <p>Effortlessly manage your school with these powerful tools:</p>
+        <div className="dashboard-sections">
+          {sections.map((section, index) => (
+            <div
+              key={index}
+              className="dashboard-card"
+              onClick={() => navigate(section.path)}
+            >
+              <div className="card-icon">{section.icon}</div>
+              <div className="card-title">{section.label}</div>
+            </div>
+          ))}
         </div>
-
-        <div className="dashboard-section student-details">
-          <h3>Student Details</h3>
-          {selectedStudent ? (
-            <StudentDetails student={selectedStudent} showAddPayment={false} />
-          ) : (
-            <p>Select a student to view details</p>
-          )}
-        </div>
+        <footer className="dashboard-footer">
+          <p>
+            Designed for seamless school management. <span>&copy; 2025</span>
+          </p>
+        </footer>
       </div>
     </div>
   );
 };
 
 export default AdminDashboard;
-
+    
