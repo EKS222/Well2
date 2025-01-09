@@ -4,7 +4,7 @@ from flask import current_app as app
 import logging
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
-
+from app.jobs import process_term_rollover, promote_students
 
 logging.basicConfig(level=logging.DEBUG)
 routes = Blueprint('routes', __name__)
@@ -549,4 +549,16 @@ def add_notification():
         }
     })
 
+@routes.route('/process-rollover', methods=['POST'])
+def process_rollover():
+    success = process_term_rollover()  # Call the rollover function
+    if success:
+        return jsonify({"message": "Term rollover processed successfully"}), 200
+    else:
+        return jsonify({"message": "No term found to process rollover"}), 400
+
+@routes.route('/promote-students', methods=['POST'])
+def promote_students_route():
+    promote_students()  # Call the function for student promotion
+    return jsonify({"message":
 
