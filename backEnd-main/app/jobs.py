@@ -1,53 +1,69 @@
-from datetime import date
-from app import db
-from app.models import Student, Fee, Term
-
-# Grade Promotion Mapping
-GRADE_PROMOTION = {
-    "baby class": "pp1",
-    "pp1": "pp2",
-    "pp2": "1",
-}
+from app.models import db, Student, Fee, BusPayment, Term
+from datetime import datetime
 
 def process_term_rollover():
-    current_date = date.today()
-    current_term = Term.query.filter(Term.end_date < current_date).first()
-
+    # Fetch the current term
+    current_term = Term.query.filter_by(end_date__lt=datetime.now()).order_by(Term.end_date.desc()).first()
+    
     if current_term:
-        new_term = Term.query.filter(Term.start_date > current_date).first()
-        if not new_term:
-            print("No new term found! Please create the next term.")
-            return
-
+        # Update student balances for bus and fees after the current term ends
         students = Student.query.all()
         for student in students:
-            student.arrears += student.balance - student.prepayment
-            student.prepayment = 0  # Reset prepayment
-
-            new_fee = Fee.query.filter_by(grade_id=student.grade_id, term_id=new_term.id).first()
-            if new_fee:
-                student.balance = student.arrears + new_fee.amount
+            # Update fee arrears
+            fee_balance = Fee.query.filter_by(student_id=student.id).first()
+            if fee_balance:
+                fee_balance.arrears += fee_balance.amount_due
+                fee_balance.amount_due = current_term.fee  # Set the new fee for the next term
+                
+            # Update bus payment arrears
+            bus_payment_balance = BusPayment.query.filter_by(student_id=student.id).first()
+            if bus_payment_balance:
+                bus_payment_balance.arrears += bus_payment_balance.amount_due
+                bus_payment_balance.amount_due = current_term.bus_fee  # Set new bus fee for the next term
             
-            student.bus_arrears += student.bus_balance
+            db.session.commit()
         
-        db.session.commit()
-        print("Term rollover completed.")
+        # Remove any prepayments (if student paid excess amount last term)
+        for student in students:
+            student_balance = Fee.query.filter_by(student_id=student.id).first()
+            if student_balance and student_balance.prepaid > 0:
+                student_balance.prepaid = 0
+                db.session.commit()
+
+        return True  # Return success status
+    else:
+        return False  # No term found to process rollover
+
 
 def promote_students():
-    current_date = date.today()
-    if current_date.month == 12 and current_date.day == 31:
-        students = Student.query.all()
-        for student in students:
-            current_grade = student.grade.lower()
-            if current_grade in GRADE_PROMOTION:
-                student.grade = GRADE_PROMOTION[current_grade]
-            else:
-                try:
-                    numeric_grade = int(current_grade)
-                    student.grade = str(numeric_grade + 1)
-                except ValueError:
-                    print(f"Unable to promote grade: {current_grade}")
-        
-        db.session.commit()
-        print("Student promotions completed.")
-              
+    # Logic for promoting students to the next class after the year ends
+    students = Student.query.all()
+    
+    for student in students:
+        # Check current grade and promote the student
+        if student.grade == 'baby':
+            student.grade = 'pp1'
+        elif student.grade == 'pp1':
+            student.grade = 'pp2'
+        elif student.grade == 'pp2':
+            student.grade = '1'
+        elif student.grade == '1':
+            student.grade = '2'
+        elif student.grade == '2':
+            student.grade = '3'
+        elif student.grade == '3':
+            student.grade = '4'
+        elif student.grade == '4':
+            student.grade = '5'
+        elif student.grade == '5':
+            student.grade = '6'
+        elif student.grade == '6':
+            student.grade = '7'
+        elif student.grade == '7':
+            student.grade = '8'
+        elif student.grade == '8':
+            student.grade = '9'
+        # Optionally add logic for handling cases when the student is in grade 9
+
+        db.session.commit()  # Save the changes for each student
+                
