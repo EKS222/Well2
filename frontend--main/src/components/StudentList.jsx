@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import "../styles/studentList.css";
+import Header from './Header';
 const StudentList = ({ role, onSelectStudent }) => {
   const [students, setStudents] = useState([]);
   const [error, setError] = useState(null);
@@ -8,10 +9,10 @@ const StudentList = ({ role, onSelectStudent }) => {
   useEffect(() => {
     const fetchStudents = async () => {
       try {
-        let url = 'https://backend1-nbbb.onrender.com/students'; // Default for Admin & Bursar
+        let url = "https://backend1-nbbb.onrender.com/students"; // Default for Admin & Bursar
 
-        if (role === 'teacher') {
-          const staffId = localStorage.getItem('staffId'); // Assuming staffId is stored after login
+        if (role === "teacher") {
+          const staffId = localStorage.getItem("staffId"); // Assuming staffId is stored after login
           url = `https://backend1-nbbb.onrender.com/staff/${staffId}/students`;
         }
 
@@ -19,26 +20,37 @@ const StudentList = ({ role, onSelectStudent }) => {
         setStudents(response.data);
       } catch (err) {
         console.error(err);
-        setError('Failed to fetch students. Please try again.');
+        setError("Failed to fetch students. Please try again.");
       }
     };
     fetchStudents();
   }, [role]);
 
   return (
-    <div>
-      <h3>Student List</h3>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <ul>
+    <div className="student-list-container">
+      <Header />
+      <h2>Student List</h2>
+      {error && <p className="error-message">{error}</p>}
+
+      <div className="student-list">
         {students.map((student) => (
-          <li key={student.id} onClick={() => onSelectStudent(student)}>
-            {student.name} - Grade: {student.grade} - Balance: {student.balance}
-          </li>
+          <div
+            key={student.id}
+            className="student-card"
+            onClick={() => onSelectStudent(student)}
+          >
+            <h3>{student.name}</h3>
+            <p>
+              <strong>Grade:</strong> {student.grade}
+            </p>
+            <p>
+              <strong>Balance:</strong> {student.balance}
+            </p>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 };
 
 export default StudentList;
-
