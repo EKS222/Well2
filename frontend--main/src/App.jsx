@@ -12,6 +12,7 @@ import PrivateRoute from './auth/PrivateRoute';
 import RoleBasedRoute from './auth/RoleBasedRoute';
 import StudentPaymentsByTerm from './components/StudentPaymentsByTerm';
 import AddStudent from './components/AddStudent';
+import StudentList from './components/StudentList';';
 
 const App = () => {
   return (
@@ -21,6 +22,7 @@ const App = () => {
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<LoginForm />} />
+          <Route path="/students" element={<StudentList />} />
           <Route path="/student" element={<StudentDashboard />} />
           <Route path="/payments" element={<StudentPaymentsByTerm />} />
           
@@ -41,6 +43,7 @@ const App = () => {
           <Route path="/bursar" element={<PrivateRoute><RoleBasedRoute role="bursar"><BursarDashboard /></RoleBasedRoute></PrivateRoute>} />
           <Route path="/director" element={<PrivateRoute><RoleBasedRoute role="director"><DirectorDashboard /></RoleBasedRoute></PrivateRoute>} />
           <Route path="/teacher" element={<PrivateRoute><RoleBasedRoute role="teacher"><TeacherDashboard /></RoleBasedRoute></PrivateRoute>} />
+          
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" />} />

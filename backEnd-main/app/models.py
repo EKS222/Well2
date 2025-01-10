@@ -209,6 +209,8 @@ class BusDestination(db.Model):
     charge = db.Column(db.Float, nullable=False)
 
     students = db.relationship('Student', back_populates='bus_destination')
+    bus_payments = db.relationship('BusPayment', back_populates='destination')
+    
 
     def __repr__(self):
         return f"<BusDestination(name={self.name}, charge={self.charge})>"
@@ -218,12 +220,13 @@ class BusPayment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     term_id = db.Column(db.Integer, db.ForeignKey('term.id'), nullable=False)
+    destination_id = db.Column(db.Integer, db.ForeignKey('bus_destination.id'), nullable=True)
     amount = db.Column(db.Float, nullable=False)
     payment_date = db.Column(db.DateTime, default=datetime.utcnow)
 
     student = db.relationship('Student', back_populates='bus_payments')
     term = db.relationship('Term', back_populates='bus_payments')
-    destination = db.relationship('BusDestination', backref='payments')
+    destination = db.relationship('BusDestination', back_populates='bus_payments')
 
     def __init__(self, student_id, term_id, amount, destination_id=None):
         self.student_id = student_id
