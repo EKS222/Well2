@@ -1,5 +1,5 @@
 from flask import request, jsonify, Blueprint
-from .models import db, Staff,  Student, Payment, Fee, BusPayment, BusDestination, Term, Gallery, Event, Notification, student_bus_destination
+from .models import db, Staff,  Student, Payment, Fee, BusPayment, BusDestination, Term, Gallery, Notification 
 from flask import current_app as app
 import logging
 from datetime import datetime
@@ -430,40 +430,81 @@ def create_bus_payment():
         }
     })
 
-@routes.route('/bus-destinations', methods=['GET'])
-def get_bus_destinations():
-    destinations = BusDestination.query.all()
-    return jsonify([{
-        'id': destination.id,
-        'name': destination.name,
-        'charge': destination.charge
-    } for destination in destinations])
-
 @routes.route('/assign-student-to-bus', methods=['POST'])
 def assign_student_to_bus():
     data = request.get_json()
-    student_id = data['student_id']
-    destination_id = data['destination_id']
 
+    # Extract student ID and destination ID from the request
+    student_id = data.get('student_id')
+    destination_id = data.get('destination_id')
+
+    # Validate student and destination existence
     student = Student.query.get(student_id)
     destination = BusDestination.query.get(destination_id)
 
-    if not student or not destination:
-        return jsonify({"error": "Student or Bus Destination not found"}), 404
+    if not student:
+        return jsonify({"error": "Student not found"}), 404
 
-    # Check if the student is already assigned to this destination
-    if destination in student.bus_destinations:
-        return jsonify({"message": "Student is already assigned to this bus destination"})
+    if not destination:
+        return jsonify({"error": "Bus destination not found"}), 404
 
-    # Assign the student to the bus destination
-    student.bus_destinations.append(destination)
+    # Assign the bus destination to the student
+    student.bus_destination_id = destination.id
     db.session.commit()
 
     return jsonify({
-        'message': 'Student assigned to bus destination successfully',
-        'student_id': student.id,
-        'destination_id': destination.id
+        "message": f"Student '{student.name}' assigned to destination '{destination.name}' successfully.",
+        "student_id": student.id,
+        "destination_id": destination.id
     })
+
+@routes.route('/students-with-destinations', methods=['GET'])
+def get_students_with_destinations():
+    # Query all students
+    students = Student.query.all()
+
+    # Prepare a list of students with their destinations
+    result = []
+    for student in students:
+        result.append({
+            "student_id": student.id,
+            "name": student.name,
+            "admission_number": student.admission_number,
+            "grade": student.grade.name if student.grade else None,
+            "destination": {
+                "id": student.bus_destination.id if student.bus_destination else None,
+                "name": student.bus_destination.name if student.bus_destination else "No destination assigned",
+                "charge": student.bus_destination.charge if student.bus_destination else None
+            }
+        })
+
+    return jsonify(result)
+
+@routes.route('/students-in-destination/<int:destination_id>', methods=['GET'])
+def get_students_in_destination(destination_id):
+    destination = BusDestination.query.get(destination_id)
+
+    if not destination:
+        return jsonify({"error": "Bus Destination not found"}), 404
+
+    students = [
+        {
+            'id': student.id,
+            'name': student.name,
+            'admission_number': student.admission_number
+        }
+        for student in destination.students
+    ]
+
+    return jsonify({
+        'destination': {
+            'id': destination.id,
+            'name': destination.name,
+            'charge': destination.charge
+        },
+        'students': students
+    })
+    
     
 def get_terms():
     terms = Term.query.all()
@@ -488,38 +529,6 @@ def add_gallery_item():
         'gallery_item': {
             'image_url': image_url,
             'description': description
-        }
-    })
-
-@routes.route('/events', methods=['GET'])
-def get_events():
-    events = Event.query.all()
-    return jsonify([{
-        'id': event.id,
-        'title': event.title,
-        'date': event.date,
-        'destination': event.destination
-    } for event in events])
-
-@routes.route('/events', methods=['POST'])
-def create_event():
-    data = request.get_json()
-    title = data['title']
-    description = data['description']
-    date = datetime.strptime(data['date'], '%Y-%m-%d %H:%M:%S')  # Convert string to datetime
-    destination = data['destination']
-
-    event = Event(title=title, description=description, date=date, destination=destination)
-    db.session.add(event)
-    db.session.commit()
-
-    return jsonify({
-        'message': 'Event created successfully',
-        'event': {
-            'title': title,
-            'description': description,
-            'date': event.date,
-            'destination': destination
         }
     })
 
@@ -558,7 +567,7 @@ def process_rollover():
         return jsonify({"message": "No term found to process rollover"}), 400
 
 @routes.route('/promote-students', methods=['POST'])
+
 def promote_students_route():
     promote_students()  # Call the function for student promotion
-    return jsonify({"message":
-
+    return jsonify({"message": "students rollover was successfulll. congratulations 🎉"}),200
