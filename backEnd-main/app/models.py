@@ -163,11 +163,17 @@ class Fee(db.Model):
     grade_id = db.Column(db.Integer, db.ForeignKey('grade.id'), nullable=False)
     amount = db.Column(db.Float, nullable=False)
 
-    grade = db.relationship('Grade', back_populates='term_fees')
-
     def __repr__(self):
         return f"<Fee(term_id={self.term_id}, grade_id={self.grade_id}, amount={self.amount})>"
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "term_id": self.term_id,
+            "grade_id": self.grade_id,
+            "amount": self.amount
+        }
+        
 # Boarding Fee model linked to grade
 class BoardingFee(db.Model):
     id = db.Column(db.Integer, primary_key=True)
