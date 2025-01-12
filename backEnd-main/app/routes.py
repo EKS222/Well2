@@ -1,5 +1,5 @@
 from flask import request, jsonify, Blueprint
-from .models import db, Staff,  Student, Payment, Fee, BusPayment, BusDestination, Term, Gallery, Notification 
+from .models import db, Staff,  Student, Payment, Fee, BusPayment, BusDestination, Term, Gallery, Notification, Grade
 from flask import current_app as app
 import logging
 from datetime import datetime
@@ -14,7 +14,7 @@ def login():
     try:
         data = request.get_json()
         identifier = data.get('identifier')  # admission_number or name
-        password = data.get('password')
+        password = gvdata.get('password')
 
         if not identifier or not password:
             return jsonify({"error": "Missing identifier or password"}), 400
@@ -40,7 +40,7 @@ def login():
 @routes.route('/students', methods=['POST'])
 def add_student():
     data = request.get_json()
-    required_fields = ['name', 'admission_number', 'grade_id', 'phone', 'term_fee', 'use_bus', 'is_boarding']
+    required_fields = ['name', 'admission_number', 'grade_id', 'phone', 'term_fee', 'use_bus']
 
     # Input validation
     for field in required_fields:
@@ -61,7 +61,6 @@ def add_student():
             phone=data['phone'],
             term_fee=data['term_fee'],
             use_bus=data['use_bus'],
-            is_boarding=data['is_boarding'],
             arrears=data.get('arrears', 0.0),
             bus_balance=data.get('bus_balance', 0.0),
             created_at=datetime.utcnow()
@@ -571,3 +570,39 @@ def process_rollover():
 def promote_students_route():
     promote_students()  # Call the function for student promotion
     return jsonify({"message": "students rollover was successfulll. congratulations 🎉"}),200
+
+# Route to add a grade
+@routes.route('/grades', methods=['POST'])
+def add_grade():
+    try:
+        data = request.get_json()
+        name = data.get('name')
+
+        if not name:
+            return jsonify({"error": "Grade name is required."}), 400
+
+        # Check if the grade already exists
+        existing_grade = Grade.query.filter_by(name=name).first()
+        if existing_grade:
+            return jsonify({"error": "Grade already exists."}), 400
+
+        # Add new grade
+        grade = Grade(name=name)
+        db.session.add(grade)
+        db.session.commit()
+
+        return jsonify({"message": f"Grade '{name}' added successfully."}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+# Route to get all grades
+@routes.route('/grades', methods=['GET'])
+def get_grades():
+    try:
+        grades = Grade.query.all()
+        grades_data = [{"id": grade.id, "grade": grade.name} for grade in grades]
+        return jsonify(grades_data), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+        

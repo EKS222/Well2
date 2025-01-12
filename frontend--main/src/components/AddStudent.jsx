@@ -4,21 +4,26 @@ import "../styles/addStudent.css";
 
 const AddStudent = () => {
   const [name, setName] = useState("");
-  const [admissionNumber, setAdmissionNumber] = useState("");
+  const [admission_number, setAdmission_number] = useState("");
   const [grade, setGrade] = useState("");
-  const [useBus, setUseBus] = useState(false);
-  const [isBoarding, setIsBoarding] = useState(false);
-  const [boardingFee, setBoardingFee] = useState(0);
+  const [use_bus, setUse_bus] = useState(false); // Fixed naming consistency
+  const [balance, setBalance] = useState(0);
   const [grades, setGrades] = useState([]);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     const fetchGrades = async () => {
+      setMessage("Fetching grades...");
       try {
-        const response = await axios.get("/api/grades"); // Adjust endpoint
+        const response = await axios.get(
+          "https://bfd46d82-011c-4928-9f66-d73819e1918a-00-38r4sqvff4osq.worf.replit.dev:5000/grades"
+        );
+        console.log("Grades fetched:", response.data);
         setGrades(response.data);
+        setMessage("");
       } catch (error) {
         console.error("Error fetching grades:", error);
+        setMessage("Error fetching grades. Please try again.");
       }
     };
 
@@ -30,36 +35,27 @@ const AddStudent = () => {
 
     const studentData = {
       name,
-      admission_number: admissionNumber,
+      admission_number,
       grade,
-      use_bus: useBus,
-      boarding_fee: boardingFee,
+      balance,
+      use_bus, // Corrected field reference
     };
 
     try {
-      const response = await axios.post("/api/students", studentData);
-      setMessage(response.data.message);
+      const response = await axios.post(
+        "https://bfd46d82-011c-4928-9f66-d73819e1918a-00-38r4sqvff4osq.worf.replit.dev:5000/students",
+        studentData
+      );
+      setMessage(response.data.message || "Student added successfully.");
+      // Clear the form fields after submission
       setName("");
-      setAdmissionNumber("");
+      setAdmission_number("");
       setGrade("");
-      setUseBus(false);
-      setBoardingFee(0);
+      setUse_bus(false);
+      setBalance(0);
     } catch (error) {
       console.error("Error adding student:", error);
       setMessage("Error adding student. Please try again.");
-    }
-  };
-
-  const handleGradeChange = (e) => {
-    const selectedGrade = e.target.value;
-    setGrade(selectedGrade);
-
-    if (["5", "6", "7", "8", "9", "10"].includes(selectedGrade)) {
-      setIsBoarding(true);
-      setBoardingFee(3500);
-    } else {
-      setIsBoarding(false);
-      setBoardingFee(0);
     }
   };
 
@@ -82,14 +78,18 @@ const AddStudent = () => {
             <label>Admission Number:</label>
             <input
               type="text"
-              value={admissionNumber}
-              onChange={(e) => setAdmissionNumber(e.target.value)}
+              value={admission_number}
+              onChange={(e) => setAdmission_number(e.target.value)}
               required
             />
           </div>
           <div className="form-group">
             <label>Grade:</label>
-            <select value={grade} onChange={handleGradeChange} required>
+            <select
+              value={grade}
+              onChange={(e) => setGrade(e.target.value)}
+              required
+            >
               <option value="" disabled>
                 Select grade
               </option>
@@ -104,23 +104,21 @@ const AddStudent = () => {
             <label>
               <input
                 type="checkbox"
-                checked={useBus}
-                onChange={() => setUseBus(!useBus)}
+                checked={use_bus}
+                onChange={() => setUse_bus(!use_bus)}
               />
               Will use bus
             </label>
           </div>
-          {!isBoarding && (
-            <div className="form-group">
-              <label>Boarding Fee:</label>
-              <input
-                type="number"
-                value={boardingFee}
-                onChange={(e) => setBoardingFee(e.target.value)}
-                disabled={isBoarding}
-              />
-            </div>
-          )}
+          <div className="form-group">
+            <label>Initial Balance:</label>
+            <input
+              type="number"
+              value={balance}
+              onChange={(e) => setBalance(parseFloat(e.target.value))}
+              required
+            />
+          </div>
           <button type="submit" className="submit-btn">
             Add Student
           </button>
@@ -131,4 +129,7 @@ const AddStudent = () => {
 };
 
 export default AddStudent;
+
+
+
                      

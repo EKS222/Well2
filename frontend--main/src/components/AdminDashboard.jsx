@@ -6,7 +6,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
 
   const sections = [
-    { label: "Students", icon: "📚", path: "/admin/students" },
+    { label: "Students", icon: "📚", path: "/students" },
     { label: "Staff", icon: "👩‍🏫", path: "/admin/staff" },
     { label: "Notifications", icon: "🔔", path: "/admin/notifications" },
     { label: "Gallery", icon: "🖼️", path: "/admin/gallery" },

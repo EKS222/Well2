@@ -12,7 +12,7 @@ import PrivateRoute from './auth/PrivateRoute';
 import RoleBasedRoute from './auth/RoleBasedRoute';
 import StudentPaymentsByTerm from './components/StudentPaymentsByTerm';
 import AddStudent from './components/AddStudent';
-import StudentList from './components/StudentList';';
+import StudentList from './components/StudentList';
 
 const App = () => {
   return (
@@ -30,7 +30,7 @@ const App = () => {
           {/* Role-Based Private Routes */}
           <Route path="/admin" element={<PrivateRoute><RoleBasedRoute role="admin"><AdminDashboard /></RoleBasedRoute></PrivateRoute>} />
           <Route 
-  path="/admin/add-student" 
+  path="/add-student" 
   element={
     <PrivateRoute>
       <RoleBasedRoute role="admin">

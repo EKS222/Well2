@@ -15,6 +15,13 @@ class Term(db.Model):
     def __repr__(self):
         return f"<Term(name={self.name}, start_date={self.start_date}, end_date={self.end_date})>"
 
+# Association table for students and bus destinations
+student_bus_destination = db.Table(
+    'student_bus_destination',
+    db.Column('student_id', db.Integer, db.ForeignKey('student.id'), primary_key=True),
+    db.Column('bus_destination_id', db.Integer, db.ForeignKey('bus_destination.id'), primary_key=True)
+)
+
 # Staff model
 class Staff(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -47,21 +54,19 @@ class Student(db.Model):
     name = db.Column(db.String(100), nullable=False)
     admission_number = db.Column(db.String(50), unique=True, nullable=False)
     grade_id = db.Column(db.Integer, db.ForeignKey('grade.id'), nullable=False)
-    phone = db.Column(db.String(20), nullable=False)
+    phone = db.Column(db.String(20), nullable=False
     balance = db.Column(db.Float, default=0.0)
     arrears = db.Column(db.Float, default=0.0)
     term_fee = db.Column(db.Float, nullable=False)
     use_bus = db.Column(db.Boolean, nullable=False)
-    bus_destination_id = db.Column(db.Integer, db.ForeignKey('bus_destination.id'), nullable=True)
     bus_balance = db.Column(db.Float, default=0.0)
     is_boarding = db.Column(db.Boolean, nullable=False, default=False)
     password = db.Column(db.String(100), nullable=False)
-
+    bus_destination_id = db.Column(db.Integer, db.ForeignKey('bus_destination.id'))
     
     # Relationships
     grade = db.relationship('Grade', backref='students')
-    # Many-to-One: A student belongs to one destination
-    bus_destination = db.relationship('BusDestination', back_populates='students')  
+    bus_destination = db.relationship('BusDestination', backref='students', lazy=True)
     payments = db.relationship('Payment', backref='student', lazy=True)
     bus_payments = db.relationship('BusPayment', back_populates='student', lazy=True)
     assignments = db.relationship('Assignment', backref='student', lazy=True)
@@ -123,7 +128,7 @@ class Payment(db.Model):
 
     @staticmethod
     def record_payment(student_id, amount, method, term_id, description=None, notes=None):
-        from current_app.models import Student
+        from models import Student
 
         student = Student.query.get(student_id)
         if not student:
@@ -208,9 +213,7 @@ class BusDestination(db.Model):
     name = db.Column(db.String(100), nullable=False)
     charge = db.Column(db.Float, nullable=False)
 
-    students = db.relationship('Student', back_populates='bus_destination')
-    bus_payments = db.relationship('BusPayment', back_populates='destination')
-    
+    students = db.relationship('Student', secondary=student_bus_destination, back_populates='bus_destinations')
 
     def __repr__(self):
         return f"<BusDestination(name={self.name}, charge={self.charge})>"
@@ -226,7 +229,7 @@ class BusPayment(db.Model):
 
     student = db.relationship('Student', back_populates='bus_payments')
     term = db.relationship('Term', back_populates='bus_payments')
-    destination = db.relationship('BusDestination', back_populates='bus_payments')
+    destination = db.relationship('BusDestination', backref='payments')
 
     def __init__(self, student_id, term_id, amount, destination_id=None):
         self.student_id = student_id
