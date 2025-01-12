@@ -189,36 +189,6 @@ def delete_staff(id):
     db.session.commit()
     
     return jsonify({"message": "Staff deleted successfully"}), 200
-
-@routes.route('/fees', methods=['POST'])
-def create_fee():
-    data = request.get_json()
-    term_id = data['term_id']
-    grade = data['grade']
-    amount = data['amount']
-
-    fee = Fee(term_id=term_id, grade=grade, amount=amount)
-    db.session.add(fee)
-    db.session.commit()
-
-    return jsonify({
-        'message': 'Fee record created successfully',
-        'fee': {
-            'term_id': term_id,
-            'grade': grade,
-            'amount': amount
-        }
-    })
-
-@routes.route('/fees/<int:term_id>', methods=['GET'])
-def get_fees_for_term(term_id):
-    fees = Fee.query.filter_by(term_id=term_id).all()
-    return jsonify([{
-        'id': fee.id,
-        'grade': fee.grade,
-        'amount': fee.amount,
-        'is_paid': fee.is_paid
-    } for fee in fees])
     
 def get_student(id):
     student = Student.query.get(id)
@@ -244,7 +214,6 @@ def add_payment():
         method = data.get('method')
         term_id = data.get('term_id')
         description = data.get('description')
-        notes = data.get('notes')
 
         if not all([student_id, amount, method, term_id]):
             return jsonify({"error": "Missing required fields"}), 400
@@ -255,7 +224,6 @@ def add_payment():
             method=method,
             term_id=term_id,
             description=description,
-            notes=notes
         )
         return jsonify({"message": "Payment added successfully", "payment_id": payment.id}), 201
 
@@ -278,7 +246,6 @@ def edit_payment(payment_id):
         payment.method = data.get('method', payment.method)
         payment.term_id = data.get('term_id', payment.term_id)
         payment.description = data.get('description', payment.description)
-        payment.notes = data.get('notes', payment.notes)
 
         db.session.commit()
         return jsonify({"message": "Payment updated successfully"}), 200
@@ -606,3 +573,39 @@ def get_grades():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
         
+# 1. Get all fees
+@routes.route('/fees', methods=['GET'])
+def get_all_fees():
+    fees = Fee.query.all()
+    result = [{"id": fee.id, "term_id": fee.term_id, "grade_id": fee.grade_id, "amount": fee.amount} for fee in fees]
+    return jsonify(result)
+
+# 2. Get fees for a specific grade and term
+@routes.route('/fees/<int:grade_id>/<int:term_id>', methods=['GET'])
+def get_fees_for_grade_and_term(grade_id, term_id):
+    fee = Fee.query.filter_by(grade_id=grade_id, term_id=term_id).first()
+    if fee:
+        return jsonify({"id": fee.id, "term_id": fee.term_id, "grade_id": fee.grade_id, "amount": fee.amount})
+    else:
+        return jsonify({"message": "Fee not found for this grade and term"}), 404
+
+# 3. Add a fee for a specific grade and term
+@routes.route('/fees', methods=['POST'])
+def add_fee():
+    data = request.get_json()
+    term_id = data.get('term_id')
+    grade_id = data.get('grade_id')
+    amount = data.get('amount')
+
+    term = Term.query.get(term_id)
+    grade = Grade.query.get(grade_id)
+
+    if not term or not grade:
+        return jsonify({"message": "Invalid term or grade"}), 400
+
+    new_fee = Fee(term_id=term_id, grade_id=grade_id, amount=amount)
+    db.session.add(new_fee)
+    db.session.commit()
+
+    return jsonify({"message": "Fee added successfully", "fee": {"id": new_fee.id, "term_id": new_fee.term_id, "grade_id": new_fee.grade_id, "amount": new_fee.amount}}), 201
+    

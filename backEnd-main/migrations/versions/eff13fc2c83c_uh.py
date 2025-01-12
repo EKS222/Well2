@@ -1,8 +1,8 @@
-"""bhd
+"""uh
 
-Revision ID: 9363147bdf00
+Revision ID: eff13fc2c83c
 Revises: 
-Create Date: 2025-01-10 17:13:14.369288
+Create Date: 2025-01-12 20:03:31.436822
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9363147bdf00'
+revision = 'eff13fc2c83c'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -78,7 +78,6 @@ def upgrade():
     sa.Column('term_id', sa.Integer(), nullable=False),
     sa.Column('grade_id', sa.Integer(), nullable=False),
     sa.Column('amount', sa.Float(), nullable=False),
-    sa.Column('is_paid', sa.Boolean(), nullable=True),
     sa.ForeignKeyConstraint(['grade_id'], ['grade.id'], ),
     sa.ForeignKeyConstraint(['term_id'], ['term.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -93,10 +92,10 @@ def upgrade():
     sa.Column('arrears', sa.Float(), nullable=True),
     sa.Column('term_fee', sa.Float(), nullable=False),
     sa.Column('use_bus', sa.Boolean(), nullable=False),
-    sa.Column('bus_destination_id', sa.Integer(), nullable=True),
     sa.Column('bus_balance', sa.Float(), nullable=True),
     sa.Column('is_boarding', sa.Boolean(), nullable=False),
     sa.Column('password', sa.String(length=100), nullable=False),
+    sa.Column('bus_destination_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['bus_destination_id'], ['bus_destination.id'], ),
     sa.ForeignKeyConstraint(['grade_id'], ['grade.id'], ),
     sa.PrimaryKeyConstraint('id'),
@@ -116,8 +115,10 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('student_id', sa.Integer(), nullable=False),
     sa.Column('term_id', sa.Integer(), nullable=False),
+    sa.Column('destination_id', sa.Integer(), nullable=True),
     sa.Column('amount', sa.Float(), nullable=False),
     sa.Column('payment_date', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['destination_id'], ['bus_destination.id'], ),
     sa.ForeignKeyConstraint(['student_id'], ['student.id'], ),
     sa.ForeignKeyConstraint(['term_id'], ['term.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -131,7 +132,6 @@ def upgrade():
     sa.Column('term_id', sa.String(length=20), nullable=False),
     sa.Column('balance_after_payment', sa.Float(), nullable=False),
     sa.Column('description', sa.String(length=255), nullable=True),
-    sa.Column('notes', sa.Text(), nullable=True),
     sa.ForeignKeyConstraint(['student_id'], ['student.id'], ),
     sa.PrimaryKeyConstraint('id')
     )

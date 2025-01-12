@@ -5,12 +5,15 @@ import random
 
 def seed_data():
     # Seed term
-    term = Term(
-        name="Term 1 2025", start_date=datetime(2025, 1, 3), end_date=datetime(2025, 2, 4)
+    term1 = Term(
+        name="Term 1 2025", start_date=datetime(2025, 1, 3), end_date=datetime(2025, 4, 4)
     )
-    db.session.add(term)
+    term2 = Term(
+        name="Term 2 2025", start_date=datetime(2025, 5, 1), end_date=datetime(2025, 8, 4)
+    )
+    db.session.add_all([term1, term2])
     db.session.commit()
-    print(f"Seeded term: {term.name}")
+    print(f"Seeded terms: {term1.name}, {term2.name}")
 
     # Seed grades
     grades = {}
@@ -22,21 +25,23 @@ def seed_data():
     db.session.commit()
     print("Seeded grades:", ", ".join(grade_names))
 
-    # Seed fees for each grade
+    # Seed fees for each term and grade
     term_fees = {
-        "baby": 6500,
-        "pp1": 7500,
-        "pp2": 6500,
-        "1": 7000,
-        "2": 5000,
-        "3": 6500,
-        "4": 6500
+        "baby": {term1.id: 6500, term2.id: 6700},
+        "pp1": {term1.id: 7500, term2.id: 7700},
+        "pp2": {term1.id: 6500, term2.id: 6700},
+        "1": {term1.id: 7000, term2.id: 7200},
+        "2": {term1.id: 5000, term2.id: 5200},
+        "3": {term1.id: 6500, term2.id: 6700},
+        "4": {term1.id: 6500, term2.id: 6700},
     }
-    for grade_name, amount in term_fees.items():
-        fee = Fee(term_id=term.id, grade_id=grades[grade_name].id, amount=amount)
-        db.session.add(fee)
+
+    for grade_name, fee_data in term_fees.items():
+        for term_id, amount in fee_data.items():
+            fee = Fee(term_id=term_id, grade_id=grades[grade_name].id, amount=amount)
+            db.session.add(fee)
     db.session.commit()
-    print("Seeded fees for all grades.")
+    print("Seeded fees for each term and grade.")
 
     # Seed bus destinations
     bus_destinations = [
@@ -66,18 +71,6 @@ def seed_data():
     db.session.commit()
     print("Seeded teachers.")
 
-    # Seed admin staff
-    admin_staff = [
-        {"name": "Admin A", "phone": "0720000010", "role": "admin"},
-        {"name": "Admin B", "phone": "0720000020", "role": "admin"}
-    ]
-    for admin in admin_staff:
-        staff = Staff(name=admin["name"], phone=admin["phone"], role=admin["role"])
-        staff.set_password("adminpassword")
-        db.session.add(staff)
-    db.session.commit()
-    print("Seeded admin staff.")
-
     # Seed classes and streams
     streams = ["blue", "green"]
     for grade_name, grade in grades.items():
@@ -99,7 +92,7 @@ def seed_data():
                     admission_number=f"ADM{grade.id}{stream[0]}{i:02d}",
                     grade_id=grade.id,
                     phone=f"07200000{i}",
-                    term_fee=term_fees[grade_name],
+                    term_fee=term_fees[grade_name][term1.id],
                     use_bus=random.choice([True, False]),
                     arrears=random.uniform(0, 1000),
                     bus_balance=random.uniform(0, 500)
@@ -110,12 +103,6 @@ def seed_data():
     db.session.commit()
     print("Seeded students.")
 
-if __name__ == "__main__":
-    app = create_app()
-    with app.app_context():
-        db.drop_all()  # Drop all tables (only for testing; remove in production)
-        db.create_all()  # Create all tables
-        seed_data()
 
         
         
